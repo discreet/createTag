@@ -1,0 +1,91 @@
+#!/usr/bin/env ruby
+
+require 'faraday'
+require 'json'
+require 'ostruct'
+require 'optparse'
+require 'open3'
+
+@options = OpenStruct.new
+parser = OptionParser.new do |opts|
+	opts.banner = 'Usage: createTag [options]'
+
+	opts.on('-u URL', '--url', 'URL for GitHub') do |url|
+		@options.url = url
+	end
+
+	opts.on('-o OWNER', '--owner', 'Owner or Organization name') do |owner|
+		@options.owner = owner
+	end
+
+	opts.on('-r REPO', '--repo','Repository name') do |repo|
+		@options.repo = repo
+	end
+
+	opts.on_tail('-h', 'Print Help menu') do |help|
+		puts opts
+		exit
+	end
+end
+parser.parse!
+
+if @options.url.nil? and @options.repo.nil?
+	puts 'The -u and -r options must be entered'
+	exit
+end
+
+def getData(url, owner, repo)
+	refs = Faraday.get "#{url}/repos/#{owner}/#{repo}/tags"
+	@tag = JSON.parse(refs.body).map { |i| i['name'] }.sort.reverse.first
+
+	@octet = JSON.parse(IO.read('version.json')).values.first
+	@major = @tag.split('.')[0]
+	@minor = @tag.split('.')[1]
+	@patch = @tag.split('.')[2]
+end
+getData(@options.url, @options.owner, @options.repo)
+
+def doIteration()
+	case @octet
+	when 'patch'
+		patch = @patch.to_i
+		newPatch = patch += 1
+		@newVer = "#{@major}.#{@minor}.#{newPatch}"
+	when 'minor'
+		minor = @minor.to_i
+		newMinor = minor += 1
+		@newVer = "#{@major}.#{newMinor}.0"
+	when 'major'
+		if @major.include?('v')
+			major = @major.delete('v')
+			major = major.to_i
+			newMajor = major += 1
+			@newVer = "v#{newMajor}.0.0"
+		else
+			major = @major.to_i
+			newMajor = major += 1
+			@newVer = "#{newMajor}.0.0"
+		end
+	end
+end
+doIteration()
+
+def tagBranch()
+	message = `git log --oneline -n 1`
+
+	tagCMD = [
+		"git tag -a #{@newVer} -m #{message}",
+		'git push origin --tags'
+	]
+
+	tagCMD.each do |cmd|
+		Open3.popen3(cmd) do |_, stdout, stderr, _|
+			while out = stdout.gets
+				puts out
+			end
+			while err = stderr.gets
+				puts err
+			end
+		end
+	end
+end
