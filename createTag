@@ -30,7 +30,7 @@ end
 parser.parse!
 
 if @options.url.nil? and @options.repo.nil?
-	puts 'The -u and -r options must be entered'
+	puts 'You must specify the repo, owner and url. Please run with -h'
 	exit
 end
 
@@ -38,10 +38,18 @@ def getData(url, owner, repo)
 	refs = Faraday.get "#{url}/repos/#{owner}/#{repo}/tags"
 	@tag = JSON.parse(refs.body).map { |i| i['name'] }.sort.reverse.first
 
-	@octet = JSON.parse(IO.read('version.json')).values.first
-	@major = @tag.split('.')[0]
-	@minor = @tag.split('.')[1]
-	@patch = @tag.split('.')[2]
+	if @tag.nil?
+		@newVer = 'v0.1.0'
+
+		tagBranch()
+	else
+		@octet = JSON.parse(IO.read('version.json')).values.first
+		@major = @tag.split('.')[0]
+		@minor = @tag.split('.')[1]
+		@patch = @tag.split('.')[2]
+
+		doIteration()
+	end
 end
 getData(@options.url, @options.owner, @options.repo)
 
@@ -67,15 +75,16 @@ def doIteration()
 			@newVer = "#{newMajor}.0.0"
 		end
 	end
+
+	tagBranch()
 end
-doIteration()
 
 def tagBranch()
 	message = `git log --oneline -n 1`
 
 	tagCMD = [
 		"git tag -a #{@newVer} -m #{message}",
-		'git push origin --tags'
+		#'git push origin --tags'
 	]
 
 	tagCMD.each do |cmd|
