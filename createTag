@@ -43,10 +43,11 @@ def getData(url, owner, repo)
 
 		tagBranch()
 	else
-		@octet = JSON.parse(IO.read('version.json')).values.first
-		@major = @tag.split('.')[0]
-		@minor = @tag.split('.')[1]
-		@patch = @tag.split('.')[2]
+		@incriment = JSON.parse(IO.read('version.json')).values.first
+		octet = @tag.split('.')
+		@major = octet[0]
+		@minor = octet[1]
+		@patch = octet[2]
 
 		doIteration()
 	end
@@ -54,7 +55,7 @@ end
 getData(@options.url, @options.owner, @options.repo)
 
 def doIteration()
-	case @octet
+	case @incriment
 	when 'patch'
 		patch = @patch.to_i
 		newPatch = patch += 1
