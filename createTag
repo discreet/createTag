@@ -84,7 +84,7 @@ def tagBranch()
 
 	tagCMD = [
 		"git tag -a #{@newVer} -m #{message}",
-		#'git push origin --tags'
+		'git push origin --tags'
 	]
 
 	tagCMD.each do |cmd|
